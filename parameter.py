@@ -10,7 +10,7 @@ import pymongo
 import logging
 
 # region 基本的处理方法
-def getWebServerTime(web):
+def getWebServerTime(web):  # 调整本地时间，从 百度 上获取北京时间，然后增加 1.5 秒后进行本地时间的更改
     conn = http.client.HTTPConnection(web)
     conn.request("GET", "/")
     r = conn.getresponse()
@@ -54,14 +54,38 @@ def downLogBarDeal(log, freq):
 
 def downLogTick(log):
     logTick.info(str(log))
-# endregion
 
+def readMongoNum(db, name, num):  # 读取 mongodb， 的数据库
+    cursor = db[name].find(limit = num, sort = [("trade_time", pymongo.DESCENDING)])  # 读取 mongodb， 因为一个软件只使用一个数据库吧
+    df = pd.DataFrame(list(cursor))
+    df.drop(['_id'], axis=1, inplace = True)
+    return df
+
+def readMongoGTTime(db, name, time):  # 读取 mongodb， 的数据库
+    cursor = db[name].find({"trade_time": { "$gt": time }}, limit = num, sort = [("trade_time", pymongo.ASCENDING)])  # 读取 mongodb， 因为一个软件只使用一个数据库吧
+    df = pd.DataFrame(list(cursor))
+    df.drop(['_id'], axis=1, inplace = True)
+    return df
+
+def readMongoGTETime(db, name, time):  # 读取 mongodb， 的数据库
+    cursor = db[name].find({"trade_time": { "$gte": time }}, limit = num, sort = [("trade_time", pymongo.ASCENDING)])  # 读取 mongodb， 因为一个软件只使用一个数据库吧
+    df = pd.DataFrame(list(cursor))
+    df.drop(['_id'], axis=1, inplace = True)
+    return df
+# endregion
 
 getWebServerTime('www.baidu.com')  # 更改本地时间
 listFreq = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]  # 需要计算的频段数
+listFreq = [5]  # 需要计算的频段数
 listFreqPlus = listFreq.copy()
 listFreqPlus.insert(0, 1)  # 基础频率加上一分钟频率
 mvlenvector = [80, 100, 120, 140, 160, 180, 200, 220, 240, 260]  # 均值的长度
+# 建立主引擎
+ee = EventEngine()
+# socket 的 port
+port = 8888
+# 数据库地址
+databaseIP = 'localhost'
 
 # region 读取 Information 信息
 dictLoginInformation = {}
@@ -84,9 +108,9 @@ with open('RD files\\LoginInformation.txt', 'r', encoding='UTF-8') as f:
 # endregion
 
 # region 获取交易日
-dfDatetime = pd.read_csv('RD files\\tradeDay.csv', parse_dates=['tradeDatetime'])
+dfDatetime = pd.read_csv('RD files\\tradeDay.csv', parse_dates=['tradeDatetime'])  # 期货交易日的表格
 tradeDatetime = dfDatetime['tradeDatetime']
-listHolidayDatetime = tradeDatetime[dfDatetime['holiday'] == 1].tolist()
+listHolidayDatetime = tradeDatetime[dfDatetime['holiday'] == 1].tolist()  # 节假日的时间
 now = datetime.now()
 theTradeDay = tradeDatetime[tradeDatetime >= now - timedelta(hours=17, minutes=15)].iat[0]  # 需要确定成交的交易记录是属于哪一个交易日
 # endregion
@@ -105,7 +129,6 @@ dictGoodsFront = {}  # 品种的 前时间
 dictGoodsLast = {}  # 夜盘收盘时间
 dictGoodsLastWord = {}  # 夜盘收盘时间中文显示
 dictGoodsOneMin = {}  # 能够记录分钟数据的合成情况，只记录一分钟数据
-dictGoodsOneMinSource = {}
 dictGoodsVolume = {}  # 品种对应的 总成交量 与 总成交额
 for num in range(GoodsTab.shape[0]):
     goodsCode = GoodsTab['品种代码'][num]
@@ -157,38 +180,32 @@ for freq in listFreqPlus:
         if freq == 1:
             dictGoodsLast[goodsCode] = dictFreqGoodsCloseNight[1][goodsCode][-1]
             dictGoodsOneMin[goodsCode] = dictFreqGoodsClose[1][goodsCode]
-            dictGoodsOneMinSource[goodsCode] = dictFreqGoodsCloseNight[1][goodsCode]
 # endregion
 
 # region 列名的处理
 listTick = ['goodsCode', 'close', 'volume', 'amt', 'position']
+listMin = ['goods_code', 'goods_name', 'open', 'high', 'low', 'close', 'volume', 'amt']
+listAdjust = ['goods_code', 'goods_name', 'adjdate', 'adjinterval']
+listMa = ['goods_code', 'goods_name', 'high', 'low', 'close']
+for vector in mvlenvector:
+    listMa.extend(['maprice_{}'.format(vector), 'stdprice_{}'.format(vector), 'stdmux_{}'.format(vector), 'highstdmux_{}'.format(vector), 'lowstdmux_{}'.format(vector)])
+listOverLap = ['goods_code', 'goods_name', 'high', 'low', 'close']
+for vector in mvlenvector:
+    listOverLap.extend(['重叠度高_{}'.format(vector), '重叠度低_{}'.format(vector), '重叠度收_{}'.format(vector)])
 # endregion
 
 # 合约切换表
 dictGoodsAdj = {}  # 合约切换表的记录
-dictGoodsInstrument = {}
+dictGoodsInstrument = {}  # 品种名称与主力合约的映射关系
 
 # 建立 mongodb 的连接
-databaseIP = 'localhost'
 dictFreqCon = {}
+dictData = {}
+readNum = 1000
 myclient = pymongo.MongoClient("mongodb://{}:27017/".format(databaseIP))
 for freq in listFreqPlus:
-    # 创建数据库
+    # 创建数据库，与建立数据库连接
     dictFreqCon[freq] = myclient["cta{}_trade".format(freq)]
-
-# socket 的 port
-port = 8888
-
-# 本周的数据
-now = datetime.now()
-DfWeek = pd.read_excel('RD files\\公共参数.xlsx', sheet_name='周时间序列表')
-DfWeek['起始时间'] = DfWeek['起始时间'] + timedelta(hours=6)
-DfWeek['结束时间'] = DfWeek['结束时间'] + timedelta(hours=8)
-for num in range(DfWeek.shape[0]):
-    if DfWeek['起始时间'][num] <= now:
-        week = DfWeek['类型'][num]
-        weekStartTime = DfWeek['起始时间'][num]
-        weekEndTime = DfWeek['结束时间'][num]
 
 # 建立日志
 loggingPath = 'log\\{}'.format(theTradeDay.strftime('%Y-%m-%d'))
@@ -214,5 +231,3 @@ for freq in listFreq:
     theLog.setLevel(logging.INFO)
     dictFreqLog[freq] = theLog  # 对应的分钟处理方法
 
-# 建立主引擎
-ee = EventEngine()

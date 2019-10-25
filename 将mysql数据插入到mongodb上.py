@@ -85,6 +85,7 @@ if __name__ == '__main__':
                     if eachTable[-3:] == '调整表':
                         df = pd.read_sql("select * from {} where trade_time > '{}'".format(goodsName, startTime), dictDiff[freq])
                         df['close'] = df['close_price']
+                        df['oi'] = 0
                         df = df.drop(['id', 'close_price', 'heyue'], axis=1)
                         print(df.columns)
                         print(df)

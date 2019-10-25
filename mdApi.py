@@ -1,4 +1,3 @@
-from function import *
 from PyQt5.QtWidgets import QApplication
 from py_ctp.ctp_struct import *
 from py_ctp.ctp_quote import *
