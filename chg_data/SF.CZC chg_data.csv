@@ -1,0 +1,7 @@
+id,goods_code,goods_name,adjdate,adjinterval,stock
+1,SF.CZC,น่ฬ๚,2018-01-02,0.0,SF805.CZC
+2,SF.CZC,น่ฬ๚,2018-04-19,8.0,SF809.CZC
+3,SF.CZC,น่ฬ๚,2018-08-15,180.0,SF901.CZC
+4,SF.CZC,น่ฬ๚,2018-12-21,-134.0,SF905.CZC
+5,SF.CZC,น่ฬ๚,2019-04-22,106.0,SF909.CZC
+6,SF.CZC,น่ฬ๚,2019-07-12,0.0,SF909.CZC

@@ -1,0 +1,8 @@
+id,goods_code,goods_name,adjdate,adjinterval,stock
+1,b.DCE,豆二,2018-01-02,0.0,B1805.DCE
+2,b.DCE,豆二,2018-02-07,-62.0,B1809.DCE
+3,b.DCE,豆二,2018-07-19,117.0,B1901.DCE
+4,b.DCE,豆二,2018-08-30,-266.0,B1905.DCE
+5,b.DCE,豆二,2019-04-03,44.0,B1906.DCE
+6,b.DCE,豆二,2019-04-30,129.0,B1909.DCE
+7,B.DCE,豆二,2019-07-12,0.0,B1909.DCE

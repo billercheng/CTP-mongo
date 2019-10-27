@@ -1,0 +1,8 @@
+userid： 096114
+password： cheng1234567
+broker：9999
+front_addr：tcp://180.168.146.187:10100,tcp://180.168.146.187:10110
+product_info： RadarTrade
+app_id： 8826243593
+auth_code： 0000000000000000
+
