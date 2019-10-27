@@ -36,7 +36,6 @@ class RdMdUi():
                 if freq == 1:
                     dictData[freq][goodsName + '_调整表'] = readMongoNum(con, '{}_调整表'.format(goodsName), readNum).set_index('trade_time').sort_index()
                     dictData[freq][goodsName + '_调整表'] = dictData[freq][goodsName + '_调整表'][listMin]
-                    print(dictData[freq][goodsName + '_调整表'])
                 else:
                     dictData[freq][goodsName + '_调整表'] = readMongoNum(con, '{}_调整表'.format(goodsName), readNum).set_index('trade_time').sort_index()
                     dictData[freq][goodsName + '_均值表'] = readMongoNum(con, '{}_均值表'.format(goodsName), readNum).set_index('trade_time').sort_index()
@@ -44,10 +43,9 @@ class RdMdUi():
                     dictData[freq][goodsName + '_调整表'] = dictData[freq][goodsName + '_调整表'][listMin]
                     dictData[freq][goodsName + '_均值表'] = dictData[freq][goodsName + '_均值表'][listMa]
                     dictData[freq][goodsName + '_重叠度表'] = dictData[freq][goodsName + '_重叠度表'][listOverLap]
-                    print(dictData[freq][goodsName + '_调整表'])
-                    print(dictData[freq][goodsName + '_均值表'])
-                    print(dictData[freq][goodsName + '_重叠度表'])
         downLogProgram('将数据库数据写入内存上操作完成')
+        # 开始补充数据
+
     # endregion
 
 if __name__ == '__main__':
