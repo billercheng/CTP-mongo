@@ -1,11 +1,16 @@
 from parameter import *
+from getMa import *
+from getOverLapDegree import *
+from chgAdjust import *
 
 def completeDb():
+    # 获取合约切换表
+    checkChg()
     # 计算多分钟数据的完整性
     for freq in listFreq:
         checkOtherMinBar(freq)  # 检查其它频段数据与调整表
-        getMa(freq, ee)  # 生成均值表
-        getOverLapDegree(freq, ee)  # 生成重叠度表
+        getMa(freq)  # 生成均值表
+        getOverLapDegree(freq)  # 生成重叠度表
 
 def checkOtherMinBar(freq):  # 合成其它分钟的程序
     con = dictFreqCon[freq]
@@ -44,6 +49,9 @@ def checkOtherMinBar(freq):  # 合成其它分钟的程序
                                                               'volume': sum,
                                                               'amt': sum,
                                                               'oi': 'last'})
-                dfFreq.to_sql(dictGoodsName[goodsCode] + '_调整表', con, if_exists='append', index=True,
-                              schema='cta{}_trade'.format(freq))
+                # 写入数据操作
+                if dfFreq.shape[0] > 0:
+                    table = con[dictGoodsName[goodsCode] + '_调整表']
+                    dfInsertMongo(dfFreq, table, index=True)
                 dictData[freq][dictGoodsName[goodsCode] + '_调整表'] = dictData[freq][dictGoodsName[goodsCode] + '_调整表'].append(dfFreq)
+

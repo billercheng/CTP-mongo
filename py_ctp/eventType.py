@@ -32,6 +32,7 @@ EVENT_WIND = 'eWind'
 EVENT_CLOSE = 'EVENT_CLOSE'
 EVENT_OPEN = 'EVENT_OPEN'
 EVENT_SUBSCRIBE = 'EVENT_SUBSCRIBE'
+EVENT_LOGIN = 'EVENT_LOGIN'
 
 #----------------------------------------------------------------------
 def test():

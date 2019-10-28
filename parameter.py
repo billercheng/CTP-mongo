@@ -27,7 +27,7 @@ def getLoseData(goodsCode, freq, startTime, endTime):  # 得到理论上，我�
     seriesTradeDay = tradeDatetime.copy()
     theStartTime = startTime.strftime('%Y-%m-%d')
     theEndtime = endTime.strftime('%Y-%m-%d')
-    if startTime.isoweekday() == 6:
+    if startTime.isoweekday() == 6:  # 如果为
         listTemp = [seriesTradeDay[(seriesTradeDay <= pd.to_datetime(theStartTime))].iat[-1]]
         listTemp.extend(seriesTradeDay[(seriesTradeDay >= pd.to_datetime(theStartTime))
                                         & (seriesTradeDay <= pd.to_datetime(theEndtime))].tolist())
@@ -61,6 +61,28 @@ def readMongoNum(db, name, num):  # 读取 mongodb， 的数据库
     df = pd.DataFrame(list(cursor))
     df.drop(['_id'], axis=1, inplace = True)
     return df
+
+def dfInsertMongo(df, con, index = True):
+    if index:
+        df = df.reset_index(drop = False)
+    listTemp = []
+    for i in range(df.shape[0]):
+        dictTemp = df.iloc[i].to_dict()
+        dictTemp = insertDbChg(dictTemp)
+        listTemp.append(dictTemp)
+    con.insert_many(listTemp)
+
+def insertDbChg(dict):  # 主要用于更改数据类型
+    for each in dict.keys():
+        if isinstance(dict[each], np.int64):
+            dict[each] = int(dict[each])
+        elif isinstance(dict[each], np.float64):
+            dict[each] = float(dict[each])
+        elif isinstance(dict[each], np.int32):
+            dict[each] = int(dict[each])
+        # elif isinstance(dict[each], pd._libs.tslib.Timestamp):
+        #     dict[each] = dict[each].strftime("%Y-%m-%d %H:%M:%S")
+    return dict
 
 def readMongoGTTime(db, name, time):  # 读取 mongodb， 的数据库
     cursor = db[name].find({"trade_time": { "$gt": time }}, limit = num, sort = [("trade_time", pymongo.ASCENDING)])  # 读取 mongodb， 因为一个软件只使用一个数据库吧
@@ -185,11 +207,12 @@ for freq in listFreqPlus:
 
 # region 列名的处理
 listTick = ['goodsCode', 'close', 'volume', 'amt', 'position']
-listMin = ['goods_code', 'goods_name', 'open', 'high', 'low', 'close', 'volume', 'amt']
+listMin = ['goods_code', 'goods_name', 'open', 'high', 'low', 'close', 'volume', 'amt', 'oi']
 listAdjust = ['goods_code', 'goods_name', 'adjdate', 'adjinterval']
-listMa = ['goods_code', 'goods_name', 'high', 'low', 'close']
+listMa = ['goods_code', 'goods_name', 'open', 'high', 'low', 'close']
 for vector in mvlenvector:
     listMa.extend(['maprice_{}'.format(vector), 'stdprice_{}'.format(vector), 'stdmux_{}'.format(vector), 'highstdmux_{}'.format(vector), 'lowstdmux_{}'.format(vector)])
+print(listMa)
 listOverLap = ['goods_code', 'goods_name', 'high', 'low', 'close']
 for vector in mvlenvector:
     listOverLap.extend(['重叠度高_{}'.format(vector), '重叠度低_{}'.format(vector), '重叠度收_{}'.format(vector)])
@@ -202,6 +225,7 @@ dictGoodsInstrument = {}  # 品种名称与主力合约的映射关系
 # 建立 mongodb 的连接
 dictFreqCon = {}
 dictData = {}
+dictGoodsTick = {}  # 储存 Tick 数据
 readNum = 1000
 myclient = pymongo.MongoClient("mongodb://{}:27017/".format(databaseIP))
 for freq in listFreqPlus:

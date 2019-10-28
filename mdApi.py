@@ -3,27 +3,17 @@ from py_ctp.ctp_struct import *
 from py_ctp.ctp_quote import *
 from py_ctp.eventEngine import *
 from py_ctp.eventType import *
+from parameter import *
 
 class MdApi:
-    def __init__(self, ee, q):
-        self.ee = ee
-        self.list_account = ['申万实盘', '中证实盘', '国泰君安实盘', '广发实盘', '中国国际实盘', "广金实盘", '']
-        self.list_server_brokerid = ["88888", "66666", "7090", "9000", "8090", ""]
-        self.list_server_investorid = ["8701000683", "830300035", "28900528", "886810370", "33305188", ""]
-        self.list_server_password = ["600467", "600467", "600467", "600467", "600467", ""]
-        self.list_server_address = ["tcp://180.168.212.51:41213",
-                                    "tcp://ctp1-md7.citicsf.com:41213",
-                                    "tcp://180.169.75.21:41213",
-                                    "tcp://116.228.246.81:41213",
-                                    "tcp://180.168.102.193:41213",
-                                    "tcp://114.80.54.236:41213"]
-        self.choice = 5
-        self.userid = '096114'
-        self.password = 'cheng1234567'
-        self.brokerid = '9999'
-        self.address = 'tcp://180.168.146.187:10110'
+    def __init__(self, userid, password, brokerid, address):
+        # 登陆的账户与密码
+        self.userid = userid
+        self.password = password
+        self.brokerid = brokerid
+        self.address = address
         # 创建Quote对象
-        self.q = q
+        self.q = Quote()
         api = self.q.CreateApi()
         spi = self.q.CreateSpi()
         self.q.RegisterSpi(spi)
@@ -41,26 +31,28 @@ class MdApi:
 
     def onFrontConnected(self):
         """服务器连接"""
-        putLogEvent(self.ee, '行情服务器连接成功')
-        print('行情服务器连接成功')
+        downLogProgram('行情服务器连接成功')
         self.q.ReqUserLogin(BrokerID=self.brokerid, UserID=self.userid, Password=self.password)
 
     def onFrontDisconnected(self, n):
         """服务器断开"""
-        putLogEvent(self.ee, '行情服务器连接断开')
+        downLogProgram('行情服务器连接断开')
 
     def onRspUserLogin(self, data, error, n, last):
         """登陆回报"""
         if error.getErrorID() == 0:
             log = '行情服务器登陆成功'
             self.islogin = True
-            print('行情服务器登陆成功')
-            event = Event(type_=EVENT_SUBSCRIBE)
-            self.ee.put(event)
+            downLogProgram(log)
+            downLogProgram("订阅主力合约")
+            for goodsCode in dictGoodsInstrument.keys():
+                dictGoodsTick[goodsCode] = pd.DataFrame(columns=listTick)
+                instrument = dictGoodsInstrument[goodsCode]
+                self.q.SubscribeMarketData(instrument)
         else:
             log = '行情服务器登陆回报，错误代码：' + str(error.getErrorID()) + \
                   ',   错误信息：' + str(error.getErrorMsg())
-        putLogEvent(self.ee, log)
+            downLogProgram(log)
 
     def onRspUserLogout(self, data, error, n, last):
         if error.getErrorID() == 0:
@@ -69,13 +61,13 @@ class MdApi:
         else:
             log = '行情服务器登出回报，错误代码：' + str(error.getErrorID()) + \
                   ',   错误信息：' + str(error.getErrorMsg())
-        putLogEvent(self.ee, log)
+        downLogProgram(log)
 
     def onRspError(self, error, n, last):
         """错误回报"""
         log = '行情错误回报，错误代码：' + str(error.getErrorID()) \
               + '错误信息：' + + str(error.getErrorMsg())
-        putLogEvent(self.ee, log)
+        downLogProgram(log)
 
     def onRspSubMarketData(self, data, info, n, last):
         pass
@@ -91,11 +83,4 @@ class MdApi:
         event.dict_['Volume'] = data.getVolume()
         event.dict_['Turnover'] = data.getTurnover()
         event.dict_['OpenInterest'] = data.getOpenInterest()
-        self.ee.put(event)
-
-if __name__ == '__main__':
-    q = Quote()
-    ee = EventEngine()
-    md = MdApi(ee, q)
-    app = QApplication(sys.argv)
-    sys.exit(app.exec_())
+        ee.put(event)
