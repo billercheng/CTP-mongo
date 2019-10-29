@@ -1,8 +1,4 @@
-from PyQt5.QtWidgets import QApplication
-from py_ctp.ctp_struct import *
 from py_ctp.ctp_quote import *
-from py_ctp.eventEngine import *
-from py_ctp.eventType import *
 from parameter import *
 
 class MdApi:
@@ -48,7 +44,7 @@ class MdApi:
             for goodsCode in dictGoodsInstrument.keys():
                 dictGoodsTick[goodsCode] = pd.DataFrame(columns=listTick)
                 instrument = dictGoodsInstrument[goodsCode]
-                self.q.SubscribeMarketData(instrument)
+                #　self.q.SubscribeMarketData(instrument)
         else:
             log = '行情服务器登陆回报，错误代码：' + str(error.getErrorID()) + \
                   ',   错误信息：' + str(error.getErrorMsg())
@@ -70,7 +66,11 @@ class MdApi:
         downLogProgram(log)
 
     def onRspSubMarketData(self, data, info, n, last):
-        pass
+        print('onRspSubMarketData')
+        print(data)
+        print(info)
+        print(n)
+        print(last)
 
     def onRtnDepthMarketData(self, data):
         """行情推送"""
@@ -84,3 +84,8 @@ class MdApi:
         event.dict_['Turnover'] = data.getTurnover()
         event.dict_['OpenInterest'] = data.getOpenInterest()
         ee.put(event)
+
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    md = MdApi('096114', 'cheng1234567', '9999', 'tcp://180.168.146.187:10110')
+    sys.exit(app.exec_())

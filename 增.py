@@ -20,7 +20,7 @@ def insertDbChg(dict):  # 主要用于更改数据类型
             dict[each] = int(dict[each])
         elif isinstance(dict[each], np.float64):
             dict[each] = float(dict[each])
-        if isinstance(dict[each], "float"):
+        if isinstance(dict[each], float):
             dict[each] = round(dict[each], 4)
         # elif isinstance(dict[each], pd._libs.tslib.Timestamp):
         #     dict[each] = dict[each].strftime("%Y-%m-%d %H:%M:%S")

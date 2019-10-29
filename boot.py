@@ -3,6 +3,7 @@ from qtpy.QtCore import QTimer
 import sys
 from parameter import *
 from mdApi import *
+from tdApi import *
 import threading
 from completeDb import *
 import socket, select
@@ -19,23 +20,35 @@ class RdMdUi():
         self.timer0 = QTimer()
         self.timer0.timeout.connect(self.checkHeCheng)
         self.timer0.start(1000 * 5)
+        # 建立 自动登陆 的界面操作
+        self.timer1 = QTimer()
+        self.timer1.timeout.connect(self.autoLogin)
+        self.timer1.start(1000 * 5)
 
     # region 主引擎事件
     def getEngine(self):
         downLogProgram("创建事件主引擎")
         ee.register(EVENT_LOGIN, self.login)  # 登陆事件
         ee.register(EVENT_MARKETDATA_CONTRACT, self.dealTickData)  # tick数据处理方式
+        self.listInstrumentInformation = []
+        ee.register(EVENT_INSTRUMENT, self.judgeChgInstrument)  # 判断是否切换主力合约
         ee.start(timer=False)
 
     def login(self, event):  # 登陆事件
-        downLogProgram("获取主力合约，并登陆行情接口")
+        downLogProgram("获取主力合约，并登陆行情与交易接口")
         self.listExec = []  # 用于记录已经合成的品种
         # 账号的登陆信息
         userid = dictLoginInformation['userid']
         password = dictLoginInformation['password']
         brokerid = dictLoginInformation['broker']
+        product_info = dictLoginInformation['product_info']
+        auth_code = dictLoginInformation['auth_code']
+        app_id = dictLoginInformation['app_id']
+        # 登陆行情接口
         self.md = MdApi(userid, password, brokerid, dictLoginInformation['front_addr'].split(',')[1])
-    
+        # 登陆交易接口
+        self.td = TdApi(userid, password, brokerid, dictLoginInformation['front_addr'].split(',')[0], product_info, app_id, auth_code)
+
     def dealTickData(self, event):
         data = {}
         if event.dict_["InstrumentID"][-4:].isdigit():
@@ -156,6 +169,74 @@ class RdMdUi():
                     print(each)
             # 放到次引擎上
             self.queue.put(theDict)
+
+    def judgeChgInstrument(self, event):
+        dictTemp = event.dict_
+        self.listInstrumentInformation.append(dictTemp)
+        if dictTemp['last']:
+            downLogProgram('查询主力合约是否变化完成')
+            ret = pd.DataFrame(self.listInstrumentInformation)
+            # 当天交易日时间为：
+            now = datetime.now()
+            tradeDayTemp = tradeDatetime[tradeDatetime >= now - timedelta(hours=17, minutes=15)].iat[0]
+            for goodsCode in dictGoodsName.keys():
+                goodsName = dictGoodsName[goodsCode]
+                goodsIcon = goodsCode.split('.')[0]
+                # 进行判断切换合约操作
+                df = ret.loc[ret['ProductID'] == goodsIcon]  # 得到某一品种的所有持仓量
+                df = df.reset_index(drop = True)
+                if df.shape[0] > 0:
+                    positionPath = 'position_max\\{} position_max.csv'.format(goodsCode.upper())
+                    dfPosition = pd.read_csv(positionPath, encoding='gbk',
+                                             parse_dates=['trade_time']).set_index('trade_time')
+                    theGoodsInstrument = dfPosition['stock'].iat[-1].upper()
+                    if goodsCode.split('.')[1] in ['CZC', 'CFE']:
+                        theInstrument = theGoodsInstrument.split('.')[0].upper()
+                    else:
+                        theInstrument = theGoodsInstrument.split('.')[0].lower()
+                    index = df['InstrumentID'].tolist().index(theInstrument)
+                    df = df[index:]
+                    print(df)
+                    df = df.sort_values(by='OpenInterest')
+                    if df['InstrumentID'].iat[-1] == theInstrument:
+                        dfPosition.loc[tradeDayTemp] = [theGoodsInstrument, df['OpenInterest'].iat[-1]]
+                        dfPosition.to_csv(positionPath, encoding = "gbk")
+                        # 重新写 chgAdjust， 因为没有切换合约， 所以只需要改日期即可
+                        chgPath = 'chg_data\\{} chg_data.csv'.format(goodsCode.upper())
+                        dfChgData = pd.read_csv(chgPath, encoding='gbk', parse_dates=['adjdate'])
+                        dfChgData['adjdate'].iat[-1] = tradeDayTemp
+                        dfChgData.to_csv(chgPath, encoding='gbk', index = False)
+                    else:  # 切换主力合约
+                        agio = df['LastPrice'].iat[-1] - df['LastPrice'][df['InstrumentID'] == theInstrument].iat[0]
+                        newGoodsInstrument = df['InstrumentID'].iat[-1] + '.' + theGoodsInstrument.split('.')[1].upper()
+                        dfPosition.loc[tradeDayTemp] = [newGoodsInstrument.upper(), df['OpenInterest'].iat[-1]]
+                        dfPosition.to_csv(positionPath, encoding="gbk")
+                        # 重新写 chgAdjust
+                        chgPath = 'chg_data\\{} chg_data.csv'.format(goodsCode.upper())
+                        dfChgData = pd.read_csv(chgPath, encoding='gbk', parse_dates=['adjdate'])
+                        dfChgData = dfChgData[:-1]
+                        dfChgData.loc[dfChgData.shape[0] + 1] = {'id': dfChgData.shape[0] + 1,
+                                                                 'goods_code': goodsCode.upper(),
+                                                                 'goods_name': goodsName,
+                                                                 'adjdate':tradeDayTemp,
+                                                                 'adjinterval':agio,
+                                                                 'stock':newGoodsInstrument.upper()}
+                        dfChgData.loc[dfChgData.shape[0] + 1] = {'id': dfChgData.shape[0] + 1,
+                                                                 'goods_code': goodsCode.upper(),
+                                                                 'goods_name': goodsName,
+                                                                 'adjdate': tradeDayTemp,
+                                                                 'adjinterval': 0,
+                                                                 'stock': newGoodsInstrument.upper()}
+                        dfChgData.to_csv(chgPath, encoding='gbk', index=False)
+                        # 写入 CTA 1 的调整时刻表
+                        table = dictFreqCon[1][goodsName + '_调整时刻表']
+                        theDict = {'goods_code' : newGoodsInstrument,
+                                   'goods_name': goodsName,
+                                   'adjdate': tradeDayTemp,
+                                   'adjinterval': agio}
+                        table.insert_one(theDict)
+            self.listInstrumentInformation = []
+            checkChg()
     # endregion
 
     # region 次引擎事件
@@ -250,6 +331,16 @@ class RdMdUi():
                     if minute.time() not in dictGoodsSend[goodsCode]:  # 合成指定的分钟数据
                         downLogProgram("商品{} ，在{}时刻上没有接收到tick数据".format(goodsCode, minute))
                     self.excHeCheng(goodsCode, minute)  # 合成操作
+
+    def autoLogin(self):  # 自动重新登陆操作
+        now = datetime.now()
+        now = datetime(now.year, now.month, now.day, now.hour, now.minute)
+        if time(8, 30) <= now.time() <= time(9):
+            event = Event(type_=EVENT_LOGIN)  # 重新登陆的操作
+            ee.put(event)
+        elif time(20, 10) <= now.time() <= time(21):
+            event = Event(type_=EVENT_LOGIN)  # 重新登陆的操作
+            ee.put(event)
     # endregion
 
 if __name__ == '__main__':

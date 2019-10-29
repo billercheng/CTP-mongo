@@ -9,6 +9,9 @@ from py_ctp.eventType import  *
 import pymongo
 import logging
 import numpy as np
+from py_ctp.ctp_struct import *
+from PyQt5.QtWidgets import QApplication
+import sys
 
 # region 基本的处理方法
 def getWebServerTime(web):  # 调整本地时间，从 百度 上获取北京时间，然后增加 1.5 秒后进行本地时间的更改
@@ -80,6 +83,8 @@ def insertDbChg(dict):  # 主要用于更改数据类型
             dict[each] = float(dict[each])
         elif isinstance(dict[each], np.int32):
             dict[each] = int(dict[each])
+        if isinstance(dict[each], float):
+            dict[each] = round(dict[each], 4)
         # elif isinstance(dict[each], pd._libs.tslib.Timestamp):
         #     dict[each] = dict[each].strftime("%Y-%m-%d %H:%M:%S")
     return dict
@@ -159,7 +164,6 @@ for num in range(GoodsTab.shape[0]):
     dictGoodsChg[goodsCode.split('.')[0]] = goodsCode.split('.')[1]
     dictGoodsLastWord[goodsCode] = GoodsTab['交易时间类型'][num]
     listGoods.append(goodsCode)
-    dictGoodsVolume[goodsCode] = {'volume':0, 'amt':0}  # 成交量与成交额
     if goodsCode.split('.')[1] != "CFE":
         dictGoodsSend[goodsCode] = [time(10, 15), time(11, 30), time(15)]
         dictGoodsFront[goodsCode] = [time(9, 1), time(10, 31), time(13, 31)]

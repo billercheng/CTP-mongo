@@ -17,3 +17,4 @@ def checkChg():
         dfChgData['adjdate'] = pd.to_datetime(dfChgData['adjdate']) + timedelta(hours=17)
         dictGoodsAdj[goodsCode] = dfChgData.copy()  # 切换合约表
         dictGoodsInstrument[goodsCode] = dictGoodsAdj[goodsCode].index[-1].split('.')[0]  # 主力合约
+        dictGoodsVolume[goodsCode] = {'volume': 0, 'amt': 0}  # 成交量与成交额，因为会有切换合约的情况
