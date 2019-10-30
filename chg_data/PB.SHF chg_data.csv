@@ -66,4 +66,5 @@ id,goods_code,goods_name,adjdate,adjinterval,stock
 65,pb.SHF,»¦Ç¦,2019-07-15,-20.0,PB1909.SHF
 66,pb.SHF,»¦Ç¦,2019-08-20,25.0,PB1910.SHF
 67,pb.SHF,»¦Ç¦,2019-09-17,-30.0,PB1911.SHF
-68,PB.SHF,»¦Ç¦,2019-10-17,0.0,PB1911.SHF
+68,pb.SHF,»¦Ç¦,2019-10-22,-105.0,PB1912.SHF
+69,PB.SHF,»¦Ç¦,2019-10-29,0.0,PB1912.SHF

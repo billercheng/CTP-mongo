@@ -12,6 +12,8 @@ class RdMdUi():
 
     # 程序初始化操作
     def __init__(self):
+        # 是否切换合约的统计
+        self.listChgDate = []
         self.getEngine()  # 建立事件注册引擎
         self.getSecondEngine()  # 创建次要引擎事件
         self.getSocket()  # 建立 socket 事件
@@ -19,23 +21,32 @@ class RdMdUi():
         # 建立 qtimer 的检测合成事件
         self.timer0 = QTimer()
         self.timer0.timeout.connect(self.checkHeCheng)
-        self.timer0.start(1000 * 5)
         # 建立 自动登陆 的界面操作
         self.timer1 = QTimer()
         self.timer1.timeout.connect(self.autoLogin)
-        self.timer1.start(1000 * 5)
 
     # region 主引擎事件
     def getEngine(self):
         downLogProgram("创建事件主引擎")
-        ee.register(EVENT_LOGIN, self.login)  # 登陆事件
+        ee.register(EVENT_LOGINMA, self.loginMa)  # 登陆事件
+        ee.register(EVENT_LOGINTD, self.loginTd)  # 登陆事件
         ee.register(EVENT_MARKETDATA_CONTRACT, self.dealTickData)  # tick数据处理方式
         self.listInstrumentInformation = []
         ee.register(EVENT_INSTRUMENT, self.judgeChgInstrument)  # 判断是否切换主力合约
         ee.start(timer=False)
 
-    def login(self, event):  # 登陆事件
+    def loginMa(self, event):  # 登陆事件
         downLogProgram("获取主力合约，并登陆行情与交易接口")
+        self.listExec = []  # 用于记录已经合成的品种
+        # 账号的登陆信息
+        userid = dictLoginInformation['userid']
+        password = dictLoginInformation['password']
+        brokerid = dictLoginInformation['broker']
+        # 登陆行情接口
+        self.md = MdApi(userid, password, brokerid, dictLoginInformation['front_addr'].split(',')[1])
+
+    def loginTd(self, event):
+        downLogProgram("登陆交易接口，目的是检测是否切换主力合约")
         self.listExec = []  # 用于记录已经合成的品种
         # 账号的登陆信息
         userid = dictLoginInformation['userid']
@@ -44,10 +55,18 @@ class RdMdUi():
         product_info = dictLoginInformation['product_info']
         auth_code = dictLoginInformation['auth_code']
         app_id = dictLoginInformation['app_id']
-        # 登陆行情接口
-        self.md = MdApi(userid, password, brokerid, dictLoginInformation['front_addr'].split(',')[1])
         # 登陆交易接口
         self.td = TdApi(userid, password, brokerid, dictLoginInformation['front_addr'].split(',')[0], product_info, app_id, auth_code)
+        t = 0
+        while not self.td.isLogin and t < 1000:
+            t += 1
+            ttt.sleep(0.01)
+        if t >= 1000:
+            downLogProgram('{} 账号登陆失败，请查看帐号密码是否正确。'.format(userid))
+        else:
+            # 执行是否切换合约的判断
+            self.td.t.ReqQryDepthMarketData()
+
 
     def dealTickData(self, event):
         data = {}
@@ -196,7 +215,6 @@ class RdMdUi():
                         theInstrument = theGoodsInstrument.split('.')[0].lower()
                     index = df['InstrumentID'].tolist().index(theInstrument)
                     df = df[index:]
-                    print(df)
                     df = df.sort_values(by='OpenInterest')
                     if df['InstrumentID'].iat[-1] == theInstrument:
                         dfPosition.loc[tradeDayTemp] = [theGoodsInstrument, df['OpenInterest'].iat[-1]]
@@ -235,8 +253,13 @@ class RdMdUi():
                                    'adjdate': tradeDayTemp,
                                    'adjinterval': agio}
                         table.insert_one(theDict)
+                print('重新设置 {} 的 dictGoodsOneMin'.format(goodsCode))
+                dictGoodsOneMin[goodsCode] = dictFreqGoodsClose[1][goodsCode]
             self.listInstrumentInformation = []
             checkChg()
+            # 进行 MA 登陆操作
+            event = Event(type_=EVENT_LOGINMA)  # 重新登陆的操作
+            ee.put(event)
     # endregion
 
     # region 次引擎事件
@@ -313,8 +336,11 @@ class RdMdUi():
         # 开始补充数据
         completeDb()
         downLogProgram('重叠度数据计算完成')
+        # qtimer 可以执行
+        self.timer0.start(1000 * 5)
+        self.timer1.start(1000 * 5)
         # 进行登陆操作
-        event = Event(type_=EVENT_LOGIN)
+        event = Event(type_=EVENT_LOGINMA)
         ee.put(event)
     # endregion
 
@@ -322,6 +348,7 @@ class RdMdUi():
     def checkHeCheng(self):  # 这个 qtimer 主要用于检查，是否存在 有一些 到了需要合成分钟的时候，但是却没有合成 1 分钟的数据
         now = datetime.now() - timedelta(seconds = 10)
         now = datetime(now.year, now.month, now.day, now.hour, now.minute)
+        print('qtimer0')
         # 查看是否有缺分钟的数量
         for goodsCode in dictGoodsName.keys():
             if len(dictGoodsOneMin[goodsCode]) > 0:
@@ -335,12 +362,16 @@ class RdMdUi():
     def autoLogin(self):  # 自动重新登陆操作
         now = datetime.now()
         now = datetime(now.year, now.month, now.day, now.hour, now.minute)
+        print('qtimer1')
         if time(8, 30) <= now.time() <= time(9):
-            event = Event(type_=EVENT_LOGIN)  # 重新登陆的操作
+            if not self.md.isLogin:
+                event = Event(type_=EVENT_LOGINMA)  # 重新登陆的操作
+                ee.put(event)
+        elif time(20, 30) <= now.time() <= time(20, 59) and now.strftime('%Y-%m-%d') not in self.listChgDate:
+            # 重新登陆 LoginTD 的操作
+            event = Event(type_=EVENT_LOGINTD)  # 重新登陆的操作
             ee.put(event)
-        elif time(20, 10) <= now.time() <= time(21):
-            event = Event(type_=EVENT_LOGIN)  # 重新登陆的操作
-            ee.put(event)
+            self.listChgDate.append(now.strftime('%Y-%m-%d'))
     # endregion
 
 if __name__ == '__main__':

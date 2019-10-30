@@ -23,28 +23,29 @@ class MdApi:
         self.q.RegCB()
         self.q.RegisterFront(self.address)
         self.q.Init()
-        self.islogin = False  # 判断是否登陆成功
+        self.isLogin = False  # 判断是否登陆成功
 
     def onFrontConnected(self):
         """服务器连接"""
         downLogProgram('行情服务器连接成功')
         self.q.ReqUserLogin(BrokerID=self.brokerid, UserID=self.userid, Password=self.password)
+        self.isLogin = True
 
     def onFrontDisconnected(self, n):
         """服务器断开"""
         downLogProgram('行情服务器连接断开')
+        self.isLogin = False
 
     def onRspUserLogin(self, data, error, n, last):
         """登陆回报"""
         if error.getErrorID() == 0:
             log = '行情服务器登陆成功'
-            self.islogin = True
             downLogProgram(log)
             downLogProgram("订阅主力合约")
             for goodsCode in dictGoodsInstrument.keys():
                 dictGoodsTick[goodsCode] = pd.DataFrame(columns=listTick)
                 instrument = dictGoodsInstrument[goodsCode]
-                #　self.q.SubscribeMarketData(instrument)
+                self.q.SubscribeMarketData(instrument)
         else:
             log = '行情服务器登陆回报，错误代码：' + str(error.getErrorID()) + \
                   ',   错误信息：' + str(error.getErrorMsg())
@@ -53,11 +54,11 @@ class MdApi:
     def onRspUserLogout(self, data, error, n, last):
         if error.getErrorID() == 0:
             log = '行情服务器登出成功'
-            self.islogin = False
         else:
             log = '行情服务器登出回报，错误代码：' + str(error.getErrorID()) + \
                   ',   错误信息：' + str(error.getErrorMsg())
         downLogProgram(log)
+        self.isLogin = False
 
     def onRspError(self, error, n, last):
         """错误回报"""
@@ -66,11 +67,7 @@ class MdApi:
         downLogProgram(log)
 
     def onRspSubMarketData(self, data, info, n, last):
-        print('onRspSubMarketData')
-        print(data)
-        print(info)
-        print(n)
-        print(last)
+        pass
 
     def onRtnDepthMarketData(self, data):
         """行情推送"""

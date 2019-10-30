@@ -28,13 +28,15 @@ class TdApi:
         self.t.RegCB()
         self.t.RegisterFront(RegisterFront)
         self.t.Init()
-        self.islogin = False
+        self.isLogin = False
 
     def onFrontConnected(self):  # 服务器连接成功能，进行注册码注册操作
+        downLogProgram('交易服务器连接成功')
         self.t.ReqAuthenticate(self.brokerid, self.userid, self.product_info, self.auth_code, self.app_id)
 
     def onFrontDisconnected(self, n):  # 交易服务器断开连接
         downLogProgram('交易服务器连接断开')
+        self.isLogin = False
 
     def onRspAuthenticate(self, pRspAuthenticateField: CThostFtdcRspAuthenticateField,
                           pRspInfo: CThostFtdcRspInfoField,
@@ -48,18 +50,18 @@ class TdApi:
             self.BrokerID = data.getBrokerID()
             log = self.Investor + '交易服务器登陆成功'
             downLogProgram(log)
-            self.islogin = True
+            self.isLogin = True
             # self.t.ReqQryDepthMarketData()  # 执行是否切换合约的判断
         else:
             log = '交易服务器登陆回报，错误代码：' + str(error.getErrorID()) + \
                   ',   错误信息：' + str(error.getErrorMsg())
             downLogProgram(log)
+        self.isLogin = False
 
     def onRspUserLogout(self, data, error, n, last):
         if error.getErrorID() == 0:
             log = '交易服务器登出成功'
             downLogProgram(log)
-            self.islogin = False
         else:
             log = '交易服务器登出回报，错误代码：' + str(error.getErrorID()) + \
                   ',   错误信息：' + str(error.getErrorMsg())

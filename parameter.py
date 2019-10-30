@@ -12,6 +12,7 @@ import numpy as np
 from py_ctp.ctp_struct import *
 from PyQt5.QtWidgets import QApplication
 import sys
+import time as ttt
 
 # region 基本的处理方法
 def getWebServerTime(web):  # 调整本地时间，从 百度 上获取北京时间，然后增加 1.5 秒后进行本地时间的更改
