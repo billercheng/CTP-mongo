@@ -48,7 +48,7 @@ class TdApi:
         if error.getErrorID() == 0:
             self.Investor = data.getUserID()
             self.BrokerID = data.getBrokerID()
-            log = self.Investor + '交易服务器登陆成功'
+            log = self.Investor + ' 交易服务器登陆成功'
             downLogProgram(log)
             self.isLogin = True
             # self.t.ReqQryDepthMarketData()  # 执行是否切换合约的判断
@@ -56,7 +56,7 @@ class TdApi:
             log = '交易服务器登陆回报，错误代码：' + str(error.getErrorID()) + \
                   ',   错误信息：' + str(error.getErrorMsg())
             downLogProgram(log)
-        self.isLogin = False
+            self.isLogin = False
 
     def onRspUserLogout(self, data, error, n, last):
         if error.getErrorID() == 0:

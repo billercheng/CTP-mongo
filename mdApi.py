@@ -80,6 +80,7 @@ class MdApi:
         event.dict_['Volume'] = data.getVolume()
         event.dict_['Turnover'] = data.getTurnover()
         event.dict_['OpenInterest'] = data.getOpenInterest()
+        # if data.getInstrumentID() not in
         ee.put(event)
 
 if __name__ == '__main__':

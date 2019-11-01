@@ -226,12 +226,13 @@ for vector in mvlenvector:
 # 合约切换表
 dictGoodsAdj = {}  # 合约切换表的记录
 dictGoodsInstrument = {}  # 品种名称与主力合约的映射关系
+listInstrument = []
 
 # 建立 mongodb 的连接
 dictFreqCon = {}
 dictData = {}
 dictGoodsTick = {}  # 储存 Tick 数据
-readNum = 1000
+readNum = 300
 myclient = pymongo.MongoClient("mongodb://{}:27017/".format(databaseIP))
 for freq in listFreqPlus:
     # 创建数据库，与建立数据库连接

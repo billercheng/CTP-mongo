@@ -14,6 +14,7 @@ class RdMdUi():
     def __init__(self):
         # 是否切换合约的统计
         self.listChgDate = []
+        self.execQtimer = False
         self.getEngine()  # 建立事件注册引擎
         self.getSecondEngine()  # 创建次要引擎事件
         self.getSocket()  # 建立 socket 事件
@@ -24,6 +25,9 @@ class RdMdUi():
         # 建立 自动登陆 的界面操作
         self.timer1 = QTimer()
         self.timer1.timeout.connect(self.autoLogin)
+        # qtimer 可以执行，但是，我是想在内存读取完毕后，再进行操作
+        self.timer0.start(1000 * 5)
+        self.timer1.start(1000 * 5)
 
     # region 主引擎事件
     def getEngine(self):
@@ -58,15 +62,14 @@ class RdMdUi():
         # 登陆交易接口
         self.td = TdApi(userid, password, brokerid, dictLoginInformation['front_addr'].split(',')[0], product_info, app_id, auth_code)
         t = 0
-        while not self.td.isLogin and t < 1000:
+        while not self.td.isLogin and t < 10000:
             t += 1
             ttt.sleep(0.01)
-        if t >= 1000:
+        if t >= 10000:
             downLogProgram('{} 账号登陆失败，请查看帐号密码是否正确。'.format(userid))
         else:
             # 执行是否切换合约的判断
             self.td.t.ReqQryDepthMarketData()
-
 
     def dealTickData(self, event):
         data = {}
@@ -225,6 +228,11 @@ class RdMdUi():
                         dfChgData['adjdate'].iat[-1] = tradeDayTemp
                         dfChgData.to_csv(chgPath, encoding='gbk', index = False)
                     else:  # 切换主力合约
+                        # 取消订阅旧合约 theInstrument
+                        try:
+                            self.md.q.UnSubscribeMarketData(theInstrument)
+                        except:
+                            downLogProgram("尚未登陆行情接口，不需要取消订阅")
                         agio = df['LastPrice'].iat[-1] - df['LastPrice'][df['InstrumentID'] == theInstrument].iat[0]
                         newGoodsInstrument = df['InstrumentID'].iat[-1] + '.' + theGoodsInstrument.split('.')[1].upper()
                         dfPosition.loc[tradeDayTemp] = [newGoodsInstrument.upper(), df['OpenInterest'].iat[-1]]
@@ -336,19 +344,16 @@ class RdMdUi():
         # 开始补充数据
         completeDb()
         downLogProgram('重叠度数据计算完成')
-        # qtimer 可以执行
-        self.timer0.start(1000 * 5)
-        self.timer1.start(1000 * 5)
-        # 进行登陆操作
-        event = Event(type_=EVENT_LOGINMA)
-        ee.put(event)
+        # 需要执行到这时，才进行 QTimer 的操作
+        self.execQtimer = True
     # endregion
 
     # region QTimer 的循环操作
     def checkHeCheng(self):  # 这个 qtimer 主要用于检查，是否存在 有一些 到了需要合成分钟的时候，但是却没有合成 1 分钟的数据
         now = datetime.now() - timedelta(seconds = 10)
         now = datetime(now.year, now.month, now.day, now.hour, now.minute)
-        print('qtimer0')
+        if not self.execQtimer:
+            return
         # 查看是否有缺分钟的数量
         for goodsCode in dictGoodsName.keys():
             if len(dictGoodsOneMin[goodsCode]) > 0:
@@ -362,16 +367,13 @@ class RdMdUi():
     def autoLogin(self):  # 自动重新登陆操作
         now = datetime.now()
         now = datetime(now.year, now.month, now.day, now.hour, now.minute)
-        print('qtimer1')
-        if time(8, 30) <= now.time() <= time(9):
-            if not self.md.isLogin:
-                event = Event(type_=EVENT_LOGINMA)  # 重新登陆的操作
-                ee.put(event)
-        elif time(20, 30) <= now.time() <= time(20, 59) and now.strftime('%Y-%m-%d') not in self.listChgDate:
+        if not self.execQtimer:
+            return
+        if (now + timedelta(hours = 3, minutes = 30)).strftime('%Y-%m-%d') not in self.listChgDate:  # 因为我想在晚上 8:30 分准时执行
             # 重新登陆 LoginTD 的操作
-            event = Event(type_=EVENT_LOGINTD)  # 重新登陆的操作
+            event = Event(type_=EVENT_LOGINTD)  # 登陆 tdApi 的操作：
             ee.put(event)
-            self.listChgDate.append(now.strftime('%Y-%m-%d'))
+            self.listChgDate.append((now + timedelta(hours = 3, minutes = 30)).strftime('%Y-%m-%d'))
     # endregion
 
 if __name__ == '__main__':
