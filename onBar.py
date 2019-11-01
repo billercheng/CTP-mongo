@@ -98,6 +98,7 @@ def getOneOverLapDegree(freq, goodsCode, CurrentTradeTime):
     theDict = {}
     theDict['goods_code'] = dfMaALL['goods_code'][-1]
     theDict['goods_name'] = dfMaALL['goods_name'][-1]
+    theDict['open'] = dfMaALL['open'][-1]
     theDict['high'] = dfMaALL['high'][-1]
     theDict['low'] = dfMaALL['low'][-1]
     theDict['close'] = dfMaALL['close'][-1]

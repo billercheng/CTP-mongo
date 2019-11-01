@@ -28,7 +28,7 @@ def insertDbChg(dict):  # 主要用于更改数据类型
 
 if __name__ == '__main__':
     # listFreq = [1, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]
-    listFreq = [24]
+    listFreq = [1, 5]
     # 资源数据库的来源
     dictFreqDatabase = {}
     # 资源数据库的连接
@@ -51,7 +51,7 @@ if __name__ == '__main__':
     listGoodsName = dfGoodsTab['品种名称'].tolist()
 
     # 删除数据
-    startTime = datetime(2015, 1, 1, 8)
+    startTime = datetime(2019, 9, 1, 8)
     for freq in listFreq:
         if freq == 1:
             con = dictMon[1]
@@ -96,5 +96,6 @@ if __name__ == '__main__':
                     if eachTable[-4:] == '重叠度表':
                         df = pd.read_sql("select * from {} where trade_time > '{}'".format(goodsName + '_重叠度表', startTime), dictDiff[freq])
                         df = df.drop(['id'], axis=1)
+                        df['open'] = 0
                         dfInsertMongo(df, table, index=False)
                 # 读取dictDiff数据

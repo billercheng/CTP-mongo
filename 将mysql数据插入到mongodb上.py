@@ -51,7 +51,7 @@ if __name__ == '__main__':
 
     # 删除数据
     # startTime = datetime(2019, 9, 22, 16)
-    startTime = datetime(2015, 1, 1, 8)
+    startTime = datetime(2019, 1, 1, 8)
     for freq in listFreq:
 
         if freq == 1:

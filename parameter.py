@@ -218,7 +218,7 @@ listMa = ['goods_code', 'goods_name', 'open', 'high', 'low', 'close']
 for vector in mvlenvector:
     listMa.extend(['maprice_{}'.format(vector), 'stdprice_{}'.format(vector), 'stdmux_{}'.format(vector), 'highstdmux_{}'.format(vector), 'lowstdmux_{}'.format(vector)])
 print(listMa)
-listOverLap = ['goods_code', 'goods_name', 'high', 'low', 'close']
+listOverLap = ['goods_code', 'goods_name', 'open', 'high', 'low', 'close']
 for vector in mvlenvector:
     listOverLap.extend(['重叠度高_{}'.format(vector), '重叠度低_{}'.format(vector), '重叠度收_{}'.format(vector)])
 # endregion

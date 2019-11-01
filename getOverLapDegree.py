@@ -16,7 +16,6 @@ def getOverLapDegree(freq):
         listCurrentTime = list(dictData[freq][dictGoodsName[goodsCode] + '_均值表'][dictData[freq][dictGoodsName[goodsCode] + '_均值表'].index > startTime].index)
         if endTime - startTime > timedelta(days=5):
             dfMaAll = dictData[freq][dictGoodsName[goodsCode] + '_均值表'].copy()
-            dfMaAll = dfMaAll.drop(['open'], axis = 1)
             # 创建重叠度表格
             dfOverLap = dfMaAll[['goods_code', 'goods_name', 'high', 'low', 'close']]
             # 获取调整时刻表
