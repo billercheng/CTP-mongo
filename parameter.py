@@ -21,7 +21,7 @@ def getWebServerTime(web):  # 调整本地时间，从 百度 上获取北京时
     r = conn.getresponse()
     ts = r.getheader('date')  # 获取http头date部分
     # 将GMT时间转换成北京时间
-    ltime = datetime.strptime(ts[5:25], "%d %b %Y %H:%M:%S") + timedelta(hours=8, seconds=1.5)
+    ltime = datetime.strptime(ts[5:25], "%d %b %Y %H:%M:%S") + timedelta(hours=8, seconds=1.2)
     dat = "date %u-%02u-%02u" % (ltime.year, ltime.month, ltime.day)
     tm = "time %02u:%02u:%02u" % (ltime.hour, ltime.minute, ltime.second)
     os.system(dat)
@@ -105,7 +105,7 @@ def readMongoGTETime(db, name, time):  # 读取 mongodb， 的数据库
 
 getWebServerTime('www.baidu.com')  # 更改本地时间
 listFreq = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]  # 需要计算的频段数
-listFreq = [5]  # 需要计算的频段数
+# listFreq = [5]  # 需要计算的频段数
 listFreqPlus = listFreq.copy()
 listFreqPlus.insert(0, 1)  # 基础频率加上一分钟频率
 mvlenvector = [80, 100, 120, 140, 160, 180, 200, 220, 240, 260]  # 均值的长度

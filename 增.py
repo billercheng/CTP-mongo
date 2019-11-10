@@ -27,8 +27,8 @@ def insertDbChg(dict):  # 主要用于更改数据类型
     return dict
 
 if __name__ == '__main__':
-    # listFreq = [1, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]
-    listFreq = [1, 5]
+    listFreq = [1, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]
+    # listFreq = [1, 5]
     # 资源数据库的来源
     dictFreqDatabase = {}
     # 资源数据库的连接
@@ -51,22 +51,25 @@ if __name__ == '__main__':
     listGoodsName = dfGoodsTab['品种名称'].tolist()
 
     # 删除数据
-    startTime = datetime(2019, 9, 1, 8)
+    startTime = datetime(2019, 10, 15, 8)
     for freq in listFreq:
         if freq == 1:
             con = dictMon[1]
             for goodsName in listGoodsName:
                 listTables = ['{}_调整表'.format(goodsName), '{}_调整时刻表'.format(goodsName)]
                 for eachTable in listTables:
-                    # 删除数据操作
-                    table = con[eachTable]
-                    table.delete_many({'trade_time': {'$gte': startTime}})
+
                     # 读取dictDiff 数据
                     if eachTable[-3:] == '调整表':
+                        # 删除数据操作
+                        table = con[eachTable]
+                        table.delete_many({'trade_time': {'$gte': startTime}})
                         df = pd.read_sql("select * from {} where trade_time > '{}'".format(goodsName + '_调整表', startTime), dictDiff[freq])
                         df = df.drop(['id'], axis=1)
                         dfInsertMongo(df, table, index = False)
                     if eachTable[-5:] == '调整时刻表':
+                        table = con[eachTable]
+                        table.drop()
                         df = pd.read_sql("select * from {}".format(goodsName + '_调整时刻表', startTime), dictDiff[freq])
                         df = df.drop(['id'], axis=1)
                         df['adjdate'] = pd.to_datetime(df['adjdate'])

@@ -82,7 +82,6 @@ def getOneMa(freq, goodsCode, CurrentTradeTime):
             'stdprice_{}'.format(eachMvl)]
         theDict['lowstdmux_{}'.format(eachMvl)] = (dfFreq['low'][-1] - theDict['maprice_{}'.format(eachMvl)]) / theDict[
             'stdprice_{}'.format(eachMvl)]
-    dictData[freq][goodsName + '_均值表'].to_csv('temp.csv')
     dictData[freq][goodsName + '_均值表'].loc[CurrentTradeTime] = [theDict[x] for x in listMa]
     theDict['trade_time'] = CurrentTradeTime
     theDict = insertDbChg(theDict)

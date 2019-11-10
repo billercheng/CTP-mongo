@@ -49,6 +49,7 @@ def checkOtherMinBar(freq):  # 合成其它分钟的程序
                                                               'volume': sum,
                                                               'amt': sum,
                                                               'oi': 'last'})
+                dfFreq = dfFreq[listMin]
                 # 写入数据操作
                 if dfFreq.shape[0] > 0:
                     table = con[dictGoodsName[goodsCode] + '_调整表']

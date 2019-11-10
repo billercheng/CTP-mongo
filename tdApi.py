@@ -23,6 +23,7 @@ class TdApi:
         self.t.OnRspQryDepthMarketData = self.onRspQryDepthMarketData  # 查询涨跌停
         self.t.OnRtnInstrumentStatus = self.onRtnInstrumentStatus
         self.t.OnRspQryInstrument = self.onRspQryInstrument
+        self.t.OnErrRtnOrderInsert = self.onErrRtnOrderInsert
         self.t.OnRtnOrder = self.onRtnOrder
         self.t.OnRtnTrade = self.onRtnTrade
         self.t.RegCB()
@@ -94,7 +95,25 @@ class TdApi:
         """成交回报"""
         pass
 
-if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    td = TdApi('096114', 'cheng1234567', '9999', 'tcp://180.168.146.187:10100', 'RadarTrade', '8826243593', '0000000000000000')
-    sys.exit(app.exec_())
+    def onErrRtnOrderInsert(self, data, error):
+        pass
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

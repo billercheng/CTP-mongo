@@ -15,6 +15,7 @@ class RdMdUi():
         # 是否切换合约的统计
         self.listChgDate = []
         self.execQtimer = False
+        self.isMaLogin = False
         self.getEngine()  # 建立事件注册引擎
         self.getSecondEngine()  # 创建次要引擎事件
         self.getSocket()  # 建立 socket 事件
@@ -48,6 +49,7 @@ class RdMdUi():
         brokerid = dictLoginInformation['broker']
         # 登陆行情接口
         self.md = MdApi(userid, password, brokerid, dictLoginInformation['front_addr'].split(',')[1])
+        self.isMaLogin = True
 
     def loginTd(self, event):
         downLogProgram("登陆交易接口，目的是检测是否切换主力合约")
@@ -132,7 +134,8 @@ class RdMdUi():
                 dictGoodsOneMin[goodsCode] = dictGoodsOneMin[goodsCode][theIndex + 1:]  # 不然的话，都是可以合成的
                 self.excHeCheng(goodsCode, minute)
         else:
-            downLogProgram("时刻点 {} , 居然不在 dictGoodsOneMin 的 {} 上，请查看".format(minute.time(), goodsCode))
+            pass
+            # downLogProgram("时刻点 {} , 居然不在 dictGoodsOneMin 的 {} 上，请查看".format(minute.time(), goodsCode))
     
     def excHeCheng(self, goodsCode, minute):
         if minute.time() in dictGoodsSend[goodsCode]:
@@ -169,7 +172,7 @@ class RdMdUi():
             self.queue.put(theDict)  # 放到次引擎上
         else:
             theDict = {}
-            theDict['goods_code'] = dictGoodsInstrument[goodsCode]
+            theDict['goods_code'] = dictGoodsInstrument[goodsCode] + '.' + goodsCode.split('.')[1]
             theDict['goods_name'] = dictGoodsName[goodsCode]
             theDict['theCode'] = goodsCode
             theDict['trade_time'] = minute
@@ -200,7 +203,8 @@ class RdMdUi():
             ret = pd.DataFrame(self.listInstrumentInformation)
             # 当天交易日时间为：
             now = datetime.now()
-            tradeDayTemp = tradeDatetime[tradeDatetime >= now - timedelta(hours=17, minutes=15)].iat[0]
+            tradeDayTemp = tradeDatetime[tradeDatetime <= now - timedelta(hours=20, minutes=29)].iat[-1]  # 获取当前交易日期
+            # 查看 行情服务器 的登陆情况
             for goodsCode in dictGoodsName.keys():
                 goodsName = dictGoodsName[goodsCode]
                 goodsIcon = goodsCode.split('.')[0]
@@ -213,61 +217,61 @@ class RdMdUi():
                                              parse_dates=['trade_time']).set_index('trade_time')
                     theGoodsInstrument = dfPosition['stock'].iat[-1].upper()
                     if goodsCode.split('.')[1] in ['CZC', 'CFE']:
-                        theInstrument = theGoodsInstrument.split('.')[0].upper()
+                        oldInstrument = theGoodsInstrument.split('.')[0].upper()
                     else:
-                        theInstrument = theGoodsInstrument.split('.')[0].lower()
-                    index = df['InstrumentID'].tolist().index(theInstrument)
+                        oldInstrument = theGoodsInstrument.split('.')[0].lower()
+                    index = df['InstrumentID'].tolist().index(oldInstrument)  # 主力合约不往前推
                     df = df[index:]
                     df = df.sort_values(by='OpenInterest')
-                    if df['InstrumentID'].iat[-1] == theInstrument:
-                        dfPosition.loc[tradeDayTemp] = [theGoodsInstrument, df['OpenInterest'].iat[-1]]
-                        dfPosition.to_csv(positionPath, encoding = "gbk")
-                        # 重新写 chgAdjust， 因为没有切换合约， 所以只需要改日期即可
-                        chgPath = 'chg_data\\{} chg_data.csv'.format(goodsCode.upper())
-                        dfChgData = pd.read_csv(chgPath, encoding='gbk', parse_dates=['adjdate'])
-                        dfChgData['adjdate'].iat[-1] = tradeDayTemp
-                        dfChgData.to_csv(chgPath, encoding='gbk', index = False)
-                    else:  # 切换主力合约
-                        # 取消订阅旧合约 theInstrument
-                        try:
-                            self.md.q.UnSubscribeMarketData(theInstrument)
-                        except:
-                            downLogProgram("尚未登陆行情接口，不需要取消订阅")
-                        agio = df['LastPrice'].iat[-1] - df['LastPrice'][df['InstrumentID'] == theInstrument].iat[0]
-                        newGoodsInstrument = df['InstrumentID'].iat[-1] + '.' + theGoodsInstrument.split('.')[1].upper()
-                        dfPosition.loc[tradeDayTemp] = [newGoodsInstrument.upper(), df['OpenInterest'].iat[-1]]
-                        dfPosition.to_csv(positionPath, encoding="gbk")
-                        # 重新写 chgAdjust
-                        chgPath = 'chg_data\\{} chg_data.csv'.format(goodsCode.upper())
-                        dfChgData = pd.read_csv(chgPath, encoding='gbk', parse_dates=['adjdate'])
-                        dfChgData = dfChgData[:-1]
-                        dfChgData.loc[dfChgData.shape[0] + 1] = {'id': dfChgData.shape[0] + 1,
-                                                                 'goods_code': goodsCode.upper(),
-                                                                 'goods_name': goodsName,
-                                                                 'adjdate':tradeDayTemp,
-                                                                 'adjinterval':agio,
-                                                                 'stock':newGoodsInstrument.upper()}
-                        dfChgData.loc[dfChgData.shape[0] + 1] = {'id': dfChgData.shape[0] + 1,
-                                                                 'goods_code': goodsCode.upper(),
-                                                                 'goods_name': goodsName,
-                                                                 'adjdate': tradeDayTemp,
-                                                                 'adjinterval': 0,
-                                                                 'stock': newGoodsInstrument.upper()}
-                        dfChgData.to_csv(chgPath, encoding='gbk', index=False)
-                        # 写入 CTA 1 的调整时刻表
-                        table = dictFreqCon[1][goodsName + '_调整时刻表']
-                        theDict = {'goods_code' : newGoodsInstrument,
-                                   'goods_name': goodsName,
-                                   'adjdate': tradeDayTemp,
-                                   'adjinterval': agio}
-                        table.insert_one(theDict)
-                print('重新设置 {} 的 dictGoodsOneMin'.format(goodsCode))
+                    if tradeDayTemp not in dfPosition.index:  # 如果那个日期已经写在持仓量上的话，那么不需要再写了
+                        if df['InstrumentID'].iat[-1] == oldInstrument:  # 没有切换主力合约
+                            dfPosition.loc[tradeDayTemp] = [theGoodsInstrument, df['OpenInterest'].iat[-1]]
+                            dfPosition.to_csv(positionPath, encoding="gbk")
+                            # 重新写 chgAdjust， 因为没有切换合约， 所以只需要改日期即可
+                            chgPath = 'chg_data\\{} chg_data.csv'.format(goodsCode.upper())
+                            dfChgData = pd.read_csv(chgPath, encoding='gbk', parse_dates=['adjdate'])
+                            dfChgData['adjdate'].iat[-1] = tradeDayTemp
+                            dfChgData.to_csv(chgPath, encoding='gbk', index=False)
+                        else:  # 切换主力合约
+                            # 取消订阅旧合约 oldInstrument
+                            downLogProgram('合约 {} 切换成合约 {}'.format(oldInstrument, df['InstrumentID'].iat[-1]))
+                            if self.isMaLogin:
+                                self.md.q.UnSubscribeMarketData(oldInstrument)
+                            agio = df['LastPrice'].iat[-1] - df['LastPrice'][df['InstrumentID'] == oldInstrument].iat[0]
+                            newGoodsInstrument = df['InstrumentID'].iat[-1] + '.' + theGoodsInstrument.split('.')[1].upper()
+                            dfPosition.loc[tradeDayTemp] = [newGoodsInstrument.upper(), df['OpenInterest'].iat[-1]]
+                            dfPosition.to_csv(positionPath, encoding="gbk")
+                            # 重新写 chgAdjust
+                            chgPath = 'chg_data\\{} chg_data.csv'.format(goodsCode.upper())
+                            dfChgData = pd.read_csv(chgPath, encoding='gbk', parse_dates=['adjdate'])
+                            dfChgData = dfChgData[:-1]
+                            dfChgData.loc[dfChgData.shape[0] + 1] = {'id': dfChgData.shape[0] + 1,
+                                                                     'goods_code': goodsCode.upper(),
+                                                                     'goods_name': goodsName,
+                                                                     'adjdate': tradeDayTemp,
+                                                                     'adjinterval': agio,
+                                                                     'stock': newGoodsInstrument.upper()}
+                            dfChgData.loc[dfChgData.shape[0] + 1] = {'id': dfChgData.shape[0] + 1,
+                                                                     'goods_code': goodsCode.upper(),
+                                                                     'goods_name': goodsName,
+                                                                     'adjdate': tradeDayTemp,
+                                                                     'adjinterval': 0,
+                                                                     'stock': newGoodsInstrument.upper()}
+                            dfChgData.to_csv(chgPath, encoding='gbk', index=False)
+                            # 写入 CTA 1 的调整时刻表
+                            table = dictFreqCon[1][goodsName + '_调整时刻表']
+                            theDict = {'goods_code': newGoodsInstrument,
+                                       'goods_name': goodsName,
+                                       'adjdate': tradeDayTemp,
+                                       'adjinterval': agio}
+                            table.insert_one(theDict)
                 dictGoodsOneMin[goodsCode] = dictFreqGoodsClose[1][goodsCode]
             self.listInstrumentInformation = []
             checkChg()
-            # 进行 MA 登陆操作
-            event = Event(type_=EVENT_LOGINMA)  # 重新登陆的操作
-            ee.put(event)
+            # 进行行情服务器的登陆操作，如果已经登陆的话，那就不需要再登陆了
+            if not self.isMaLogin:
+                event = Event(type_=EVENT_LOGINMA)  # 重新登陆的操作
+                ee.put(event)
     # endregion
 
     # region 次引擎事件

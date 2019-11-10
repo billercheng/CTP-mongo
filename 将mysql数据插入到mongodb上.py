@@ -27,8 +27,8 @@ def insertDbChg(dict):  # 主要用于更改数据类型
     return dict
 
 if __name__ == '__main__':
-    # listFreq = [1, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]
-    listFreq = [1, 5]
+    listFreq = [1]
+    # listFreq = [1, 5]
     dictFreqDatabase = {}
     dictDiff = {}  # 建立DIFF数据库连接
     # mongodb 数据库
